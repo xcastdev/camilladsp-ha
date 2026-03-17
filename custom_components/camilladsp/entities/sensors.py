@@ -18,7 +18,7 @@ import logging
 from typing import Any
 
 from ..api.models import RuntimeStatus
-from .descriptors import EntityDescriptor, EntityPlatform, MutationStrategy
+from .descriptors import EntityDescriptor, EntityPlatform, MutationStrategy, ValueOrigin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +45,8 @@ def build_sensor_descriptors(
             node_type=None,
             subtype=None,
             value_type=str,
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:state-machine",
             entity_category="diagnostic",
@@ -61,6 +63,8 @@ def build_sensor_descriptors(
             value_type=int,
             unit="Hz",
             native_unit="Hz",
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:metronome",
             entity_category="diagnostic",
@@ -76,6 +80,8 @@ def build_sensor_descriptors(
             node_type=None,
             subtype=None,
             value_type=int,
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:buffer",
             entity_category="diagnostic",
@@ -91,6 +97,8 @@ def build_sensor_descriptors(
             node_type=None,
             subtype=None,
             value_type=int,
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:alert-circle-outline",
             entity_category="diagnostic",
@@ -108,6 +116,8 @@ def build_sensor_descriptors(
             value_type=float,
             unit="%",
             native_unit="%",
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:gauge",
             entity_category="diagnostic",
@@ -123,6 +133,8 @@ def build_sensor_descriptors(
             node_type=None,
             subtype=None,
             value_type=str,
+            writable=False,
+            value_origin=ValueOrigin.RUNTIME,
             mutation_strategy=MutationStrategy.READ_ONLY,
             icon="mdi:file-document-outline",
             entity_category="diagnostic",

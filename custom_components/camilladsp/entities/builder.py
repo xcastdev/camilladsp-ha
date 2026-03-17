@@ -6,15 +6,24 @@ factories defined in sibling modules (numbers, switches, selects, sensors).
 
 from __future__ import annotations
 
+import logging
+from dataclasses import replace
 from typing import Any
 
 from ..api.models import RuntimeStatus, StoredConfig
-from .descriptors import EntityDescriptor
+from .descriptors import (
+    EntityDescriptor,
+    EntityPlatform,
+    MutationStrategy,
+    ValueOrigin,
+)
 from .numbers import build_number_descriptors
 from .selects import build_select_descriptors
 from .sensors import build_sensor_descriptors
 from .switches import build_switch_descriptors
-from .utils import sanitize_id
+from .utils import is_tokenized, resolve_config_value, sanitize_id
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def build_descriptors(
@@ -47,7 +56,45 @@ def build_descriptors(
     descriptors.extend(build_switch_descriptors(config_doc, entry_id))
     descriptors.extend(build_select_descriptors(config_doc, entry_id, stored_configs))
     descriptors.extend(build_sensor_descriptors(config_doc, entry_id, status))
+
+    # Centralized token classification: convert tokenized config values
+    # into read-only sensors so they are visible but not writable.
+    descriptors = _classify_tokens(descriptors, config_doc)
+
     return descriptors
+
+
+def _classify_tokens(
+    descriptors: list[EntityDescriptor],
+    config_doc: dict[str, Any],
+) -> list[EntityDescriptor]:
+    """Convert tokenized config-backed descriptors into read-only sensors.
+
+    Walks every descriptor that has a ``config_path``.  If the backing
+    value in the config document is a tokenized string (e.g.
+    ``$samplerate$``), the descriptor is replaced with a read-only
+    sensor so the raw token is visible but not writable.
+    """
+    result: list[EntityDescriptor] = []
+    for desc in descriptors:
+        if desc.config_path and is_tokenized(
+            resolve_config_value(config_doc, desc.config_path)
+        ):
+            _LOGGER.debug(
+                "Converting %s to read-only sensor (tokenized value)",
+                desc.unique_id,
+            )
+            desc = replace(
+                desc,
+                platform=EntityPlatform.SENSOR,
+                writable=False,
+                value_type=str,
+                value_origin=ValueOrigin.TOKEN,
+                mutation_strategy=MutationStrategy.READ_ONLY,
+                entity_category="diagnostic",
+            )
+        result.append(desc)
+    return result
 
 
 def diff_descriptors(

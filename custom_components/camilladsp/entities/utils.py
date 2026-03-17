@@ -25,8 +25,8 @@ def is_tokenized(value: Any) -> bool:
     """Check if a value contains CamillaDSP token patterns like ``$samplerate$``.
 
     Token patterns use the form ``$name$`` and indicate that the parameter
-    is dynamically resolved by the DSP engine at runtime and should not be
-    editable from the HA UI.
+    is dynamically resolved by the DSP engine at runtime.  The builder
+    converts tokenized descriptors into read-only sensor entities.
 
     >>> is_tokenized("$samplerate$")
     True

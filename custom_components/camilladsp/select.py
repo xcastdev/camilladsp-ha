@@ -147,6 +147,13 @@ class CamillaDSPSelect(CamillaDSPEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Handle option selection."""
+        if not self.descriptor.writable:
+            _LOGGER.warning(
+                "Ignoring write to non-writable select entity %s",
+                self.descriptor.unique_id,
+            )
+            return
+
         strategy = self.descriptor.mutation_strategy
 
         if strategy == MutationStrategy.ACTIVE_CONFIG:

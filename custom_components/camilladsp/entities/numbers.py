@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .descriptors import EntityDescriptor, EntityPlatform, MutationStrategy
-from .utils import is_tokenized, resolve_config_value, sanitize_id
+from .descriptors import EntityDescriptor, EntityPlatform, MutationStrategy, NumberMode
+from .utils import sanitize_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def build_number_descriptors(
             step=1.0,
             mutation_strategy=MutationStrategy.VOLUME_FAST,
             icon="mdi:volume-high",
-            editable=True,
+            number_mode=NumberMode.SLIDER,
         )
     )
 
@@ -51,31 +51,7 @@ def build_number_descriptors(
     descriptors.extend(_build_processor_numbers(config_doc, entry_id))
     descriptors.extend(_build_mixer_numbers(config_doc, entry_id))
 
-    # Mark tokenized parameters as non-editable (read-only)
-    descriptors = _apply_token_detection(descriptors, config_doc)
-
     return descriptors
-
-
-def _apply_token_detection(
-    descriptors: list[EntityDescriptor],
-    config_doc: dict[str, Any],
-) -> list[EntityDescriptor]:
-    """Replace descriptors whose backing value is tokenized with non-editable copies."""
-    result: list[EntityDescriptor] = []
-    for desc in descriptors:
-        if desc.config_path and is_tokenized(
-            resolve_config_value(config_doc, desc.config_path)
-        ):
-            _LOGGER.debug(
-                "Marking %s as non-editable (tokenized value)", desc.unique_id
-            )
-            # Frozen dataclass – create a replacement with editable=False
-            from dataclasses import replace
-
-            desc = replace(desc, editable=False)
-        result.append(desc)
-    return result
 
 
 # ------------------------------------------------------------------

@@ -21,7 +21,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DATA_COORDINATOR, DOMAIN
 from .coordinator import CamillaDSPCoordinator
-from .entities.descriptors import EntityDescriptor, EntityPlatform, MutationStrategy
+from .entities.descriptors import (
+    EntityDescriptor,
+    EntityPlatform,
+    MutationStrategy,
+    NumberMode as DescriptorNumberMode,
+)
 from .entities.utils import db_to_percent, percent_to_db
 from .entity import CamillaDSPEntity
 
@@ -88,11 +93,19 @@ async def async_setup_entry(
     )
 
 
+_DESCRIPTOR_TO_HA_MODE: dict[DescriptorNumberMode, NumberMode] = {
+    DescriptorNumberMode.SLIDER: NumberMode.SLIDER,
+    DescriptorNumberMode.BOX: NumberMode.BOX,
+    DescriptorNumberMode.AUTO: NumberMode.AUTO,
+}
+
+
 class CamillaDSPNumber(CamillaDSPEntity, NumberEntity):
     """Numeric control entity for CamillaDSP.
 
-    Supports both slider-mode (debounced writes) and box-mode (immediate
-    writes) depending on the descriptor's ``editable`` flag.
+    Supports slider-mode, box-mode, or auto-mode depending on the
+    descriptor's ``number_mode`` field.  Write operations are guarded
+    by the descriptor's ``writable`` flag.
     """
 
     def __init__(
@@ -112,7 +125,9 @@ class CamillaDSPNumber(CamillaDSPEntity, NumberEntity):
         self._attr_native_unit_of_measurement = (
             descriptor.unit or descriptor.native_unit
         )
-        self._attr_mode = NumberMode.SLIDER if descriptor.editable else NumberMode.BOX
+        self._attr_mode = _DESCRIPTOR_TO_HA_MODE.get(
+            descriptor.number_mode, NumberMode.BOX
+        )
 
         if descriptor.device_class:
             self._attr_device_class = descriptor.device_class
@@ -145,6 +160,13 @@ class CamillaDSPNumber(CamillaDSPEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle value changes – uses debounce for config-path writes."""
+        if not self.descriptor.writable:
+            _LOGGER.warning(
+                "Ignoring write to non-writable number entity %s",
+                self.descriptor.unique_id,
+            )
+            return
+
         strategy = self.descriptor.mutation_strategy
 
         if strategy == MutationStrategy.VOLUME_FAST:

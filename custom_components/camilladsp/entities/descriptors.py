@@ -8,9 +8,8 @@ normalized config document; the platform modules consume them.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 
 class EntityPlatform(str, Enum):
@@ -29,6 +28,7 @@ class MutationStrategy(str, Enum):
     - ``VOLUME_FAST`` – direct volume API bypass.
     - ``MUTE_FAST`` – direct mute API bypass.
     - ``ACTIVE_CONFIG`` – switch the active config file.
+    - ``LIVE_DIAGNOSTICS`` – toggle the coordinator's live-polling mode.
     - ``READ_ONLY`` – sensors / status (no write path).
     """
 
@@ -36,7 +36,24 @@ class MutationStrategy(str, Enum):
     VOLUME_FAST = "volume_fast"
     MUTE_FAST = "mute_fast"
     ACTIVE_CONFIG = "active_config"
+    LIVE_DIAGNOSTICS = "live_diagnostics"
     READ_ONLY = "read_only"
+
+
+class NumberMode(str, Enum):
+    """Preferred UI rendering for number entities."""
+
+    SLIDER = "slider"
+    BOX = "box"
+    AUTO = "auto"
+
+
+class ValueOrigin(str, Enum):
+    """Where the entity's value comes from."""
+
+    LITERAL = "literal"  # normal config value
+    TOKEN = "token"  # $samplerate$ etc — runtime-resolved placeholder
+    RUNTIME = "runtime"  # live status / telemetry
 
 
 @dataclass(frozen=True)
@@ -78,5 +95,7 @@ class EntityDescriptor:
 
     # --- behaviour ---
     available: bool = True
-    editable: bool = True
+    writable: bool = True
+    number_mode: NumberMode = NumberMode.BOX
+    value_origin: ValueOrigin = ValueOrigin.LITERAL
     mutation_strategy: MutationStrategy = MutationStrategy.CONFIG_PATH

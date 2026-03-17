@@ -1,4 +1,4 @@
-"""CamillaDSP sensor platform – read-only telemetry and status.
+"""CamillaDSP sensor platform – read-only telemetry, status, and tokens.
 
 Exposes runtime metrics from the CamillaDSP backend:
 
@@ -8,11 +8,13 @@ Exposes runtime metrics from the CamillaDSP backend:
 - Clipped samples
 - Processing load (%)
 - Active config filename (read-only mirror)
+- Tokenized config values (e.g. ``$samplerate$``) – shown as raw strings
 
 All sensors use ``MutationStrategy.READ_ONLY`` – they have no write path.
 The sensor reads its value from the coordinator using a mapping from the
 descriptor's ``translation_key`` to the corresponding coordinator property
-or ``RuntimeStatus`` field.
+or ``RuntimeStatus`` field.  Tokenized config-value sensors use the
+``config_path`` fallback to display the raw token string.
 """
 
 from __future__ import annotations

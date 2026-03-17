@@ -14,6 +14,8 @@ from custom_components.camilladsp.entities.descriptors import (
     EntityDescriptor,
     EntityPlatform,
     MutationStrategy,
+    NumberMode,
+    ValueOrigin,
 )
 from custom_components.camilladsp.entities.utils import sanitize_id
 
@@ -460,7 +462,7 @@ class TestGlobalVolumeDescriptor:
         assert vol.max_value == 100.0
         assert vol.step == 1.0
         assert vol.value_type is float
-        assert vol.editable is True
+        assert vol.number_mode == NumberMode.SLIDER
 
     def test_volume_number_with_empty_config(self):
         descs = _build({})
@@ -493,6 +495,40 @@ class TestGlobalMuteDescriptor:
         descs = _build({})
         mute = [d for d in descs if d.unique_id == f"camilladsp_{ENTRY_ID}_mute"]
         assert len(mute) == 1
+
+
+# ------------------------------------------------------------------
+# Live diagnostics switch descriptor
+# ------------------------------------------------------------------
+
+
+class TestLiveDiagnosticsDescriptor:
+    """Live diagnostics toggle is always emitted as a switch entity."""
+
+    def test_live_diagnostics_switch_present(self, sample_config):
+        descs = _build(sample_config)
+        ld = [
+            d for d in descs if d.unique_id == f"camilladsp_{ENTRY_ID}_live_diagnostics"
+        ]
+        assert len(ld) == 1
+
+    def test_live_diagnostics_switch_attributes(self, sample_config):
+        descs = _build(sample_config)
+        ld = [
+            d for d in descs if d.unique_id == f"camilladsp_{ENTRY_ID}_live_diagnostics"
+        ][0]
+        assert ld.platform == EntityPlatform.SWITCH
+        assert ld.mutation_strategy == MutationStrategy.LIVE_DIAGNOSTICS
+        assert ld.value_type is bool
+        assert ld.icon == "mdi:pulse"
+        assert ld.entity_category == "config"
+
+    def test_live_diagnostics_with_empty_config(self):
+        descs = _build({})
+        ld = [
+            d for d in descs if d.unique_id == f"camilladsp_{ENTRY_ID}_live_diagnostics"
+        ]
+        assert len(ld) == 1
 
 
 # ------------------------------------------------------------------
@@ -723,6 +759,225 @@ class TestDiffDescriptors:
         assert len(unchanged) == 1
         assert unchanged[0].label == "New Label"
         assert unchanged[0].options == ["x", "y"]
+
+
+# ------------------------------------------------------------------
+# Number mode semantics
+# ------------------------------------------------------------------
+
+
+class TestNumberModeSemantics:
+    """Only volume should be SLIDER; all other numbers default to BOX."""
+
+    def test_volume_is_slider(self, sample_config):
+        descs = _build(sample_config)
+        vol = [d for d in descs if d.unique_id == f"camilladsp_{ENTRY_ID}_volume"][0]
+        assert vol.number_mode == NumberMode.SLIDER
+
+    def test_non_volume_numbers_are_box(self, sample_config):
+        descs = _build(sample_config)
+        numbers = _descriptors_by_platform(descs, EntityPlatform.NUMBER)
+        non_volume = [
+            d for d in numbers if d.unique_id != f"camilladsp_{ENTRY_ID}_volume"
+        ]
+        for d in non_volume:
+            assert d.number_mode == NumberMode.BOX, (
+                f"Expected BOX for {d.unique_id}, got {d.number_mode}"
+            )
+
+    def test_all_biquad_numbers_are_box(self, all_biquads_config):
+        descs = _build(all_biquads_config)
+        numbers = _descriptors_by_platform(descs, EntityPlatform.NUMBER)
+        non_volume = [
+            d for d in numbers if d.unique_id != f"camilladsp_{ENTRY_ID}_volume"
+        ]
+        for d in non_volume:
+            assert d.number_mode == NumberMode.BOX, (
+                f"Expected BOX for {d.unique_id}, got {d.number_mode}"
+            )
+
+
+# ------------------------------------------------------------------
+# Writable semantics
+# ------------------------------------------------------------------
+
+
+class TestWritableSemantics:
+    """Writable flag defaults and token override."""
+
+    def test_literal_numbers_are_writable(self, sample_config):
+        descs = _build(sample_config)
+        numbers = _descriptors_by_platform(descs, EntityPlatform.NUMBER)
+        for d in numbers:
+            assert d.writable is True, f"{d.unique_id} should be writable"
+
+    def test_literal_switches_are_writable(self, sample_config):
+        descs = _build(sample_config)
+        switches = _descriptors_by_platform(descs, EntityPlatform.SWITCH)
+        for d in switches:
+            assert d.writable is True, f"{d.unique_id} should be writable"
+
+    def test_sensors_are_not_writable(self, sample_config):
+        descs = _build(sample_config)
+        sensors = _descriptors_by_platform(descs, EntityPlatform.SENSOR)
+        for d in sensors:
+            assert d.writable is False, f"{d.unique_id} should not be writable"
+
+
+# ------------------------------------------------------------------
+# Token classification
+# ------------------------------------------------------------------
+
+
+class TestTokenClassification:
+    """Tokenized config values are converted to read-only sensors."""
+
+    def test_tokenized_freq_becomes_sensor(self):
+        """A filter with $samplerate$ freq should become a sensor."""
+        raw = {
+            "devices": {"samplerate": 44100},
+            "filters": {
+                "my_filter": {
+                    "type": "Biquad",
+                    "parameters": {
+                        "type": "Highpass",
+                        "freq": "$samplerate$",
+                        "q": 0.7,
+                    },
+                }
+            },
+        }
+        descs = _build(raw)
+        # The freq descriptor should now be a sensor
+        freq_descs = [
+            d
+            for d in descs
+            if d.config_path
+            and "freq" in d.config_path
+            and "my_filter" in d.config_path
+        ]
+        assert len(freq_descs) == 1
+        freq = freq_descs[0]
+        assert freq.platform == EntityPlatform.SENSOR
+        assert freq.writable is False
+        assert freq.value_type is str
+        assert freq.value_origin == ValueOrigin.TOKEN
+        assert freq.mutation_strategy == MutationStrategy.READ_ONLY
+
+    def test_tokenized_freq_non_tokenized_q_stays_number(self):
+        """A literal q next to a tokenized freq should remain a number."""
+        raw = {
+            "devices": {"samplerate": 44100},
+            "filters": {
+                "my_filter": {
+                    "type": "Biquad",
+                    "parameters": {
+                        "type": "Highpass",
+                        "freq": "$samplerate$",
+                        "q": 0.7,
+                    },
+                }
+            },
+        }
+        descs = _build(raw)
+        q_descs = [
+            d
+            for d in descs
+            if d.config_path
+            and d.config_path.endswith(".q")
+            and "my_filter" in d.config_path
+        ]
+        assert len(q_descs) == 1
+        q = q_descs[0]
+        assert q.platform == EntityPlatform.NUMBER
+        assert q.writable is True
+        assert q.number_mode == NumberMode.BOX
+
+    def test_tokenized_gain_becomes_sensor(self):
+        """A Gain filter with tokenized gain value."""
+        raw = {
+            "devices": {"samplerate": 44100},
+            "filters": {
+                "my_gain": {
+                    "type": "Gain",
+                    "parameters": {
+                        "gain": "$some_token$",
+                        "inverted": False,
+                        "mute": False,
+                    },
+                }
+            },
+        }
+        descs = _build(raw)
+        gain_descs = [
+            d
+            for d in descs
+            if d.config_path
+            and d.config_path.endswith(".gain")
+            and "my_gain" in d.config_path
+        ]
+        assert len(gain_descs) == 1
+        assert gain_descs[0].platform == EntityPlatform.SENSOR
+        assert gain_descs[0].writable is False
+
+    def test_tokenized_switch_becomes_sensor(self):
+        """A Gain filter with tokenized mute (bool) should become a sensor."""
+        raw = {
+            "devices": {"samplerate": 44100},
+            "filters": {
+                "my_gain": {
+                    "type": "Gain",
+                    "parameters": {
+                        "gain": -3.0,
+                        "inverted": False,
+                        "mute": "$some_token$",
+                    },
+                }
+            },
+        }
+        descs = _build(raw)
+        mute_descs = [
+            d
+            for d in descs
+            if d.config_path and "mute" in d.config_path and "my_gain" in d.config_path
+        ]
+        assert len(mute_descs) == 1
+        assert mute_descs[0].platform == EntityPlatform.SENSOR
+        assert mute_descs[0].writable is False
+        assert mute_descs[0].value_origin == ValueOrigin.TOKEN
+
+    def test_no_tokens_no_conversion(self, sample_config):
+        """A normal config with no tokens should have no token sensors."""
+        descs = _build(sample_config)
+        token_sensors = [d for d in descs if d.value_origin == ValueOrigin.TOKEN]
+        assert len(token_sensors) == 0
+
+
+# ------------------------------------------------------------------
+# Value origin semantics
+# ------------------------------------------------------------------
+
+
+class TestValueOriginSemantics:
+    """Value origin is correctly assigned."""
+
+    def test_runtime_sensors_have_runtime_origin(self, sample_config):
+        descs = _build(sample_config)
+        sensors = _descriptors_by_platform(descs, EntityPlatform.SENSOR)
+        for s in sensors:
+            assert s.value_origin == ValueOrigin.RUNTIME
+
+    def test_config_numbers_have_literal_origin(self, sample_config):
+        descs = _build(sample_config)
+        numbers = _descriptors_by_platform(descs, EntityPlatform.NUMBER)
+        for d in numbers:
+            assert d.value_origin == ValueOrigin.LITERAL
+
+    def test_config_switches_have_literal_origin(self, sample_config):
+        descs = _build(sample_config)
+        switches = _descriptors_by_platform(descs, EntityPlatform.SWITCH)
+        for d in switches:
+            assert d.value_origin == ValueOrigin.LITERAL
 
 
 # ------------------------------------------------------------------

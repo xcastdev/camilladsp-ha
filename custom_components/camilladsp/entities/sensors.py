@@ -127,33 +127,6 @@ def build_sensor_descriptors(
             icon="mdi:file-document-outline",
             entity_category="diagnostic",
         ),
-        # -- Volume (read-only sensor) --
-        EntityDescriptor(
-            unique_id=f"camilladsp_{entry_id}_volume_sensor",
-            platform=EntityPlatform.SENSOR,
-            label="Volume",
-            translation_key="volume_sensor",
-            config_path=None,
-            node_type=None,
-            subtype=None,
-            value_type=float,
-            unit="dB",
-            native_unit="dB",
-            mutation_strategy=MutationStrategy.READ_ONLY,
-            icon="mdi:volume-high",
-            state_class="measurement",
-        ),
-        # -- Mute state (read-only sensor) --
-        EntityDescriptor(
-            unique_id=f"camilladsp_{entry_id}_mute_sensor",
-            platform=EntityPlatform.SENSOR,
-            label="Mute",
-            translation_key="mute_sensor",
-            config_path=None,
-            node_type=None,
-            subtype=None,
-            value_type=bool,
-            mutation_strategy=MutationStrategy.READ_ONLY,
-            icon="mdi:volume-off",
-        ),
+        # NOTE: Volume and Mute are now writable entities (number / switch)
+        # created by build_number_descriptors and build_switch_descriptors.
     ]

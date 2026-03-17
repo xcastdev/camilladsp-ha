@@ -8,8 +8,6 @@ Exposes runtime metrics from the CamillaDSP backend:
 - Clipped samples
 - Processing load (%)
 - Active config filename (read-only mirror)
-- Volume (read-only mirror)
-- Mute state (read-only mirror)
 
 All sensors use ``MutationStrategy.READ_ONLY`` – they have no write path.
 The sensor reads its value from the coordinator using a mapping from the
@@ -138,20 +136,6 @@ class CamillaDSPSensor(CamillaDSPEntity, SensorEntity):
                 return None
             value = getattr(status, _STATUS_FIELD_MAP[tkey], None)
             return self._coerce(value)
-
-        # --- Volume (read-only mirror) ---
-        if tkey == "volume_sensor":
-            vol = self.coordinator.volume
-            if vol is not None:
-                return round(vol, 1)
-            return None
-
-        # --- Mute (read-only mirror) ---
-        if tkey == "mute_sensor":
-            mute = self.coordinator.mute
-            if mute is None:
-                return None
-            return "On" if mute else "Off"
 
         # --- Active config filename (read-only mirror) ---
         if tkey == "active_config_filename":

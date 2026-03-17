@@ -22,6 +22,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DATA_COORDINATOR, DOMAIN
 from .coordinator import CamillaDSPCoordinator
 from .entities.descriptors import EntityDescriptor, EntityPlatform, MutationStrategy
+from .entities.utils import db_to_percent, percent_to_db
 from .entity import CamillaDSPEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -126,7 +127,8 @@ class CamillaDSPNumber(CamillaDSPEntity, NumberEntity):
         strategy = self.descriptor.mutation_strategy
 
         if strategy == MutationStrategy.VOLUME_FAST:
-            return self.coordinator.volume
+            db = self.coordinator.volume
+            return db_to_percent(db) if db is not None else None
 
         # Default: read from the config document.
         value = self._get_config_value()
@@ -146,7 +148,7 @@ class CamillaDSPNumber(CamillaDSPEntity, NumberEntity):
         strategy = self.descriptor.mutation_strategy
 
         if strategy == MutationStrategy.VOLUME_FAST:
-            await self.coordinator.async_set_volume(value)
+            await self.coordinator.async_set_volume(percent_to_db(value))
             return
 
         if strategy == MutationStrategy.CONFIG_PATH and self.descriptor.config_path:

@@ -26,6 +26,20 @@ def build_switch_descriptors(
 ) -> list[EntityDescriptor]:
     """Build switch entity descriptors from the normalized config."""
     descriptors: list[EntityDescriptor] = []
+
+    # Global mute toggle (always present, uses fast-path API)
+    descriptors.append(
+        EntityDescriptor(
+            unique_id=f"camilladsp_{entry_id}_mute",
+            platform=EntityPlatform.SWITCH,
+            label="Mute",
+            translation_key="mute",
+            value_type=bool,
+            mutation_strategy=MutationStrategy.MUTE_FAST,
+            icon="mdi:volume-off",
+        )
+    )
+
     descriptors.extend(_build_filter_switches(config_doc, entry_id))
     descriptors.extend(_build_pipeline_switches(config_doc, entry_id))
     descriptors.extend(_build_processor_switches(config_doc, entry_id))

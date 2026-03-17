@@ -27,6 +27,26 @@ def build_number_descriptors(
 ) -> list[EntityDescriptor]:
     """Build number entity descriptors from the normalized config."""
     descriptors: list[EntityDescriptor] = []
+
+    # Global volume slider (always present, uses fast-path API)
+    # Exposed as 0–100 % in the UI; mapped to -51 dB … 0 dB on the wire.
+    descriptors.append(
+        EntityDescriptor(
+            unique_id=f"camilladsp_{entry_id}_volume",
+            platform=EntityPlatform.NUMBER,
+            label="Volume",
+            translation_key="volume",
+            value_type=float,
+            unit="%",
+            min_value=0.0,
+            max_value=100.0,
+            step=1.0,
+            mutation_strategy=MutationStrategy.VOLUME_FAST,
+            icon="mdi:volume-high",
+            editable=True,
+        )
+    )
+
     descriptors.extend(_build_filter_numbers(config_doc, entry_id))
     descriptors.extend(_build_processor_numbers(config_doc, entry_id))
     descriptors.extend(_build_mixer_numbers(config_doc, entry_id))

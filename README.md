@@ -4,7 +4,7 @@ A custom Home Assistant integration that connects to a [CamillaDSP](https://gith
 
 ## Features
 
-- **Config flow setup** with host/port connectivity validation
+- **Config flow setup** with base URL connectivity validation
 - **Dynamic entities** generated from the active CamillaDSP config -- no hardcoded entity lists
 - **Number entities** for filter gain, frequency, Q, delay, compressor parameters, mixer source gain, and more
 - **Switch entities** for mute, inverted, pipeline bypass, soft clip, and other booleans
@@ -27,7 +27,7 @@ A custom Home Assistant integration that connects to a [CamillaDSP](https://gith
 1. Copy the `custom_components/camilladsp/` directory into your Home Assistant `custom_components/` folder.
 2. Restart Home Assistant.
 3. Go to **Settings > Devices & Services > Add Integration** and search for **CamillaDSP**.
-4. Enter the host and port of your CamillaDSP backend (default port: `5005`).
+4. Enter the base URL of your CamillaDSP backend (e.g. `http://192.168.1.50:5005`).
 5. The integration will validate the connection and create entities from your active config.
 
 ## Supported Filter Types
@@ -216,7 +216,7 @@ custom_components/camilladsp/
   __init__.py              # Integration setup, coordinator bootstrap, service registration
   manifest.json            # Integration metadata
   const.py                 # Domain constants and defaults
-  config_flow.py           # Host/port setup with connectivity validation
+  config_flow.py           # Base URL setup with connectivity validation
   coordinator.py           # DataUpdateCoordinator for polling and write pipeline
   entity.py                # Descriptor-backed entity base class
   number.py                # Number platform (gain, freq, Q, etc.)
